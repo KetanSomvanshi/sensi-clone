@@ -1,8 +1,10 @@
 from datetime import datetime
+from typing import List
 
 from sqlalchemy import Column, TIMESTAMP, Boolean, Integer, String, Float, ForeignKey
 from sqlalchemy.orm import backref, relationship
 
+from controller.context_manager import get_db_session
 from data_adapter.db import time_now, DBBase
 from models.sensi_models import SensiDerivativeModel, SensiUnderlyingModel
 
@@ -20,7 +22,7 @@ class SensiDBBase:
     symbol = Column(String(1000), nullable=True)
     underlying = Column(String(1000), nullable=True)
     instrument_type = Column(String(10), nullable=True)
-    expiry = Column(datetime, nullable=True)
+    expiry = Column(TIMESTAMP(timezone=True), nullable=True)
     strike = Column(Float, nullable=True)
 
 
@@ -30,6 +32,12 @@ class SensiUnderlying(DBBase, SensiDBBase):
     def __to_model(self) -> SensiUnderlyingModel:
         """converts db model to pydantic model"""
         return SensiUnderlying.from_orm(self)
+
+    @classmethod
+    def get_all_underlying(cls) -> List[SensiUnderlyingModel]:
+        """returns all underlying data"""
+        db = get_db_session()
+        return [underlying.__to_model() for underlying in db.query(cls).all()]
 
 
 class SensiDerivative(DBBase, SensiDBBase):
@@ -42,3 +50,10 @@ class SensiDerivative(DBBase, SensiDBBase):
     def __to_model(self) -> SensiDerivativeModel:
         """converts db model to pydantic model"""
         return SensiDerivative.from_orm(self)
+
+    @classmethod
+    def get_all_derivative_by_underlying_symbol(cls, symbol: str) -> List[SensiDerivativeModel]:
+        """returns all derivative data for a given underlying symbol"""
+        db = get_db_session()
+        return [derivative.__to_model() for derivative in
+                db.query(cls).join(SensiUnderlying).filter(SensiUnderlying.symbol == symbol).all()]

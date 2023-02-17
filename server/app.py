@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from fastapi import FastAPI, Depends
 
-from controller import status
+from controller import status, sensi_controller
 from data_adapter import db
 from logger import logger
 import uvicorn
@@ -11,6 +11,7 @@ app = FastAPI()
 db.DBBase.metadata.create_all(bind=db.db_engine)
 
 app.include_router(status.router)
+app.include_router(sensi_controller.sensi_router)
 
 
 @app.on_event("startup")
