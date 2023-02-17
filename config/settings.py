@@ -22,3 +22,9 @@ class CELERY:
 
 class REDIS:
     url = Environment.get_string("REDIS_URL", "redis://redis_server:6379/0")
+
+
+class BrokerConfig:
+    url = Environment.get_string("BROKER_INTEGRATION_URL", "https://prototype.sbulltech.com/api")
+    underlying_url = Environment.get_string("BROKER_UNDERLYING_URL", "/underlyings")
+    derivative_url = Environment.get_string("BROKER_DERIVATIVE_URL", "/derivatives/%s")
