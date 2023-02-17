@@ -38,3 +38,24 @@ def make_request(external_service_url, request_params: dict = None, method='GET'
     except Exception as e:
         logger.error(extra=context_log_meta.get(), msg=f"exception in make_request error : {e}")
         return {}, 500
+
+
+class Singleton:
+    """Implementation of singleton design pattern
+    This is a singleton class which is used to get the instance of the class which is decorated with this class"""
+
+    def __init__(self, cls):
+        self._cls = cls
+
+    def get_instance(self):
+        try:
+            return self._instance
+        except AttributeError:
+            self._instance = self._cls()
+            return self._instance
+
+    def __call__(self):
+        raise TypeError('Singletons must be accessed through `get_instance()`.')
+
+    def __instancecheck__(self, inst):
+        return isinstance(inst, self._cls)

@@ -1,6 +1,8 @@
-from typing import List
+from typing import List, Set
 
+from config.constants import RedisKeys
 from controller.context_manager import context_log_meta
+from data_adapter.redis import Cache
 from data_adapter.sensi_data import SensiUnderlying, SensiDerivative
 from integrations.broker_integration import BrokerIntegration
 from logger import logger
@@ -46,11 +48,18 @@ class SensiUseCase:
         """
         try:
             underlyings_from_broker: List[SensiBrokerResModel] = BrokerIntegration.fetch_all_underlyings()
-            if not underlyings_from_broker:
-                logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in broker")
+            current_underlyings_in_system: Set[str] = Cache.get_instance().smembers(RedisKeys.UNDERLYINGS_DATA)
+            #  filter out underlyings which are already in system
+            underlyings_to_be_added: List[SensiBrokerResModel] = list(
+                filter(lambda x: x.token not in current_underlyings_in_system, underlyings_from_broker))
+            if not underlyings_to_be_added:
+                logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in broker that are not in system")
                 return GenericResponseModel(success=False)
             SensiUnderlying.insert_underlyings(
-                [underlying.build_underlying_db_model() for underlying in underlyings_from_broker])
+                [underlying.build_underlying_db_model() for underlying in underlyings_to_be_added])
+            # update cached underlyings with newly added underlyings
+            Cache.get_instance().sadd(RedisKeys.UNDERLYINGS_DATA, values=[underlying.token for underlying in
+                                                                          underlyings_to_be_added])
             return GenericResponseModel(success=True)
         except Exception as e:
             logger.error(extra=context_log_meta.get(), msg=f"exception in sync_underlyings_data error : {e}")
