@@ -45,7 +45,7 @@ class SensiUseCase:
         :return GenericResponseModel:
         """
         try:
-            underlyings_from_broker: List[SensiBrokerResModel] = SensiUnderlying.get_all_underlying()
+            underlyings_from_broker: List[SensiBrokerResModel] = BrokerIntegration.fetch_all_underlyings()
             if not underlyings_from_broker:
                 logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in broker")
                 return GenericResponseModel(success=False)
