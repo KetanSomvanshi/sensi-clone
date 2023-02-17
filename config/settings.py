@@ -27,4 +27,4 @@ class REDIS:
 class BrokerConfig:
     url = Environment.get_string("BROKER_INTEGRATION_URL", "https://prototype.sbulltech.com/api")
     underlying_url = Environment.get_string("BROKER_UNDERLYING_URL", "/underlyings")
-    derivative_url = Environment.get_string("BROKER_DERIVATIVE_URL", "/derivatives/%s")
+    derivative_url = Environment.get_string("BROKER_DERIVATIVE_URL", "/derivatives/{}")

@@ -15,7 +15,7 @@ class SensiBrokerResModel(BaseModel):
         """builds underlying db model from response model"""
         from data_adapter.sensi_data import SensiUnderlying
         res_dict = self.dict(exclude_unset=True)
-        res_dict['expiry'] = None if not res_dict.pop('expiry') else res_dict['expiry']
+        res_dict['expiry'] = None if not res_dict.get('expiry') else res_dict.get('expiry')
         return SensiUnderlying(**res_dict)
 
     def build_derivative_db_model(self, underlying_id: int):
@@ -23,6 +23,7 @@ class SensiBrokerResModel(BaseModel):
         from data_adapter.sensi_data import SensiDerivative
         res_dict = self.dict(exclude_unset=True)
         res_dict['underlying_id'] = underlying_id
+        res_dict['expiry'] = None if not res_dict.get('expiry') else res_dict.get('expiry')
         return SensiDerivative(**res_dict)
 
 

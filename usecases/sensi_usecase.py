@@ -45,16 +45,40 @@ class SensiUseCase:
         :return GenericResponseModel:
         """
         try:
-            underlyings_from_broker: List[SensiBrokerResModel] = BrokerIntegration.fetch_all_underlyings()
+            underlyings_from_broker: List[SensiBrokerResModel] = SensiUnderlying.get_all_underlying()
             if not underlyings_from_broker:
                 logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in broker")
                 return GenericResponseModel(success=False)
             SensiUnderlying.insert_underlyings(
                 [underlying.build_underlying_db_model() for underlying in underlyings_from_broker])
-            # for underlying in underlyings_from_broker:
-            #     BrokerIntegration.fetch_all_derivatives_by_underlying_token(underlying_token=underlying.token)
-
             return GenericResponseModel(success=True)
         except Exception as e:
             logger.error(extra=context_log_meta.get(), msg=f"exception in sync_underlyings_data error : {e}")
+            return GenericResponseModel(success=False)
+
+    @staticmethod
+    def sync_derivatives_data() -> GenericResponseModel:
+        """
+        Sync derivative data for all underlyings
+        :return GenericResponseModel:
+        """
+        try:
+            underlyings_from_db: List[SensiUnderlyingModel] = SensiUnderlying.get_all_underlying()
+            if not underlyings_from_db:
+                logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in db")
+                return GenericResponseModel(success=False)
+            for underlying in underlyings_from_db:
+                derivatives_from_broker: List[
+                    SensiBrokerResModel] = BrokerIntegration.fetch_all_derivatives_by_underlying_token(
+                    underlying_token=underlying.token)
+                if not derivatives_from_broker:
+                    logger.error(extra=context_log_meta.get(),
+                                 msg=f"no derivatives found in broker for underlying : {underlying.symbol}")
+                    continue
+                SensiDerivative.insert_derivatives(
+                    [derivative.build_derivative_db_model(underlying_id=underlying.id) for derivative in
+                     derivatives_from_broker])
+            return GenericResponseModel(success=True)
+        except Exception as e:
+            logger.error(extra=context_log_meta.get(), msg=f"exception in sync_derivatives_data error : {e}")
             return GenericResponseModel(success=False)
