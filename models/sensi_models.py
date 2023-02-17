@@ -48,3 +48,19 @@ class SensiDerivativeModel(SensiBase):
     """Sensi derivative model"""
     underlying_id: int
     underlying_data: SensiUnderlyingModel
+
+
+class UnderlyingCacheModel(BaseModel):
+    """Sensi underlying cache model"""
+    token: str
+    id: int
+
+    def build_cache_data(self):
+        """builds cache data from response model"""
+        return f"{self.token}::{self.id}"
+
+    @classmethod
+    def parse_cache_data(cls, cache_data: str):
+        """builds cache data from response model"""
+        token, id = cache_data.split("::")
+        return cls(token=token, id=int(id))
