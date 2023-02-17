@@ -18,6 +18,8 @@ class DB:
 
 class CELERY:
     broker_uri = Environment.get_string("CELERY_BROKER_URI", "redis://redis_server:6379/1")
+    trigger_freqn_for_derivative = Environment.get_int("CELERY_TRIGGER_FREQN_FOR_DERIVATIVE", 60)
+    trigger_freqn_for_underlying = Environment.get_int("CELERY_TRIGGER_FREQN_FOR_UNDERLYING", 300)
 
 
 class REDIS:

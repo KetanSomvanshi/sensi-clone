@@ -22,6 +22,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
 
 DBBase = declarative_base()
 
+# scoped_session should be strictly used where it is guaranteed that there would be use of single thread local like....
+# .....in the case of celery
+# but in cases of async stuff thread locals is not mapped to a single request , single request in fastapi can use.....
+# ..... multiple thread locals or single thread local can handle multiple requests
+# Also make sure you explicitly do db_session.remove() on teardown of the thread local
+db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=db_engine))
+
 
 def get_db():
     """this function is used to inject db_session dependency in every rest api requests"""

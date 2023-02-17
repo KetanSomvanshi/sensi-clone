@@ -33,7 +33,7 @@ class SensiBase(SensiBrokerResModel):
     created_at: datetime
     updated_at: Optional[datetime]
     is_deleted: bool
-    expiry: Optional[datetime]
+    expiry: Optional[Any] = None
 
     class Config:
         orm_mode = True
