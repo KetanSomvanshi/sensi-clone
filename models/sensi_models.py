@@ -9,7 +9,7 @@ class SensiBrokerResModel(BaseModel):
     symbol: str
     underlying: Optional[str] = None
     instrument_type: Optional[str] = None
-    expiry: Optional[str] = None
+    expiry: Optional[Any] = None
     strike: Optional[float] = 0
 
     def build_underlying_db_model(self):
@@ -28,6 +28,10 @@ class SensiBrokerResModel(BaseModel):
         return SensiDerivative(**res_dict)
 
 
+class SensiResModel(SensiBrokerResModel):
+    price: Optional[float] = 0
+
+
 class SensiBase(SensiBrokerResModel):
     """Base model for all sensi data models"""
     id: int
@@ -39,6 +43,10 @@ class SensiBase(SensiBrokerResModel):
 
     class Config:
         orm_mode = True
+
+    def build_res_model(self) -> SensiResModel:
+        """builds response model from db model"""
+        return SensiResModel.parse_obj(self.dict())
 
 
 class SensiUnderlyingModel(SensiBase):

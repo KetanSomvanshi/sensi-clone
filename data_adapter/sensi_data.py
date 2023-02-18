@@ -6,7 +6,7 @@ from sqlalchemy.orm import backref, relationship
 
 from controller.context_manager import get_db_session
 from data_adapter.db import time_now, DBBase
-from models.sensi_models import SensiDerivativeModel, SensiUnderlyingModel
+from models.sensi_models import SensiDerivativeModel, SensiUnderlyingModel, SensiResModel
 
 
 class SensiDBBase:
@@ -34,10 +34,10 @@ class SensiUnderlying(DBBase, SensiDBBase):
         return SensiUnderlyingModel.from_orm(self)
 
     @classmethod
-    def get_all_underlying(cls) -> List[SensiUnderlyingModel]:
+    def get_all_underlying(cls) -> List[SensiResModel]:
         """returns all underlying data"""
         db = get_db_session()
-        return [underlying.__to_model() for underlying in db.query(cls).all()]
+        return [underlying.__to_model().build_res_model() for underlying in db.query(cls).all()]
 
     @classmethod
     def insert_underlyings(cls, underlyings):
@@ -58,10 +58,10 @@ class SensiDerivative(DBBase, SensiDBBase):
         return SensiDerivativeModel.from_orm(self)
 
     @classmethod
-    def get_all_derivative_by_underlying_symbol(cls, symbol: str) -> List[SensiDerivativeModel]:
+    def get_all_derivative_by_underlying_symbol(cls, symbol: str) -> List[SensiResModel]:
         """returns all derivative data for a given underlying symbol"""
         db = get_db_session()
-        return [derivative.__to_model() for derivative in
+        return [derivative.__to_model().build_res_model() for derivative in
                 db.query(cls).join(SensiUnderlying).filter(SensiUnderlying.symbol == symbol).all()]
 
     @classmethod

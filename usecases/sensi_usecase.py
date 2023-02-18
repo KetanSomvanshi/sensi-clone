@@ -9,7 +9,7 @@ from integrations.broker_integration import BrokerIntegration
 from logger import logger
 from models.base import GenericResponseModel
 from models.sensi_models import SensiUnderlyingModel, SensiDerivativeModel, SensiBrokerResModel, UnderlyingCacheModel, \
-    BrokerWSOutgoingMessage, BrokerWSCommands
+    BrokerWSOutgoingMessage, BrokerWSCommands, SensiResModel
 
 
 class SensiUseCase:
@@ -21,7 +21,7 @@ class SensiUseCase:
         :return GenericResponseModel:
         """
         try:
-            sensi_underlyings: List[SensiUnderlyingModel] = SensiUnderlying.get_all_underlying()
+            sensi_underlyings: List[SensiResModel] = SensiUnderlying.get_all_underlying()
             if not sensi_underlyings:
                 return GenericResponseModel(success=False, payload="No underlyings found")
             token_price_from_cache: dict = Cache.get_instance(). \
@@ -30,7 +30,7 @@ class SensiUseCase:
             token_price_map: dict = {}
             for i in range(len(sensi_underlyings)):
                 if token_price_from_cache[i]:
-                    token_price_map[sensi_underlyings[i].token] = token_price_from_cache[i]
+                    token_price_map[sensi_underlyings[i].token] = float(token_price_from_cache[i])
             # update price in derivative object from cache
             for derivative in sensi_underlyings:
                 derivative.price = token_price_map.get(derivative.token)
@@ -47,7 +47,7 @@ class SensiUseCase:
         :return GenericResponseModel:
         """
         try:
-            sensi_derivatives: List[SensiDerivativeModel] = SensiDerivative.get_all_derivative_by_underlying_symbol(
+            sensi_derivatives: List[SensiResModel] = SensiDerivative.get_all_derivative_by_underlying_symbol(
                 symbol=symbol)
             if not sensi_derivatives:
                 return GenericResponseModel(success=False, payload="No derivatives found for given symbol")
@@ -57,7 +57,7 @@ class SensiUseCase:
             token_price_map: dict = {}
             for i in range(len(sensi_derivatives)):
                 if token_price_from_cache[i]:
-                    token_price_map[sensi_derivatives[i].token] = token_price_from_cache[i]
+                    token_price_map[sensi_derivatives[i].token] = float(token_price_from_cache[i])
             # update price in derivative object from cache
             for derivative in sensi_derivatives:
                 derivative.price = token_price_map.get(derivative.token)
