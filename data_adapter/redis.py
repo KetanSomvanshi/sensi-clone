@@ -105,7 +105,6 @@ class Cache:
 
     def subscribe(self, topic: str) -> None:
         """subscribe to given topic"""
-        print("subscribing to topic : ", topic)
         try:
             if not self.__validate():
                 return

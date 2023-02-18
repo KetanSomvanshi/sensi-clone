@@ -6,6 +6,11 @@ from logger import logger
 from models.sensi_models import SensiBrokerResModel
 from utils.utils import make_request
 
+import json
+
+from data_adapter.ws import WS
+from models.sensi_models import BrokerWSOutgoingMessage, BrokerWSIncomingMessage
+
 
 class BrokerIntegration:
     """external broker integration class"""
@@ -32,3 +37,23 @@ class BrokerIntegration:
                              f" status_code: {status_code} response_data: {response_data}")
             return []
         return [SensiBrokerResModel(**derivative) for derivative in response_data.get("payload")]
+
+    @staticmethod
+    async def broker_ws_listener():
+        """connect to websocket and listen for incoming messages
+        This should run in a separate thread which should not block the main thread or event loop"""
+        await WS.get_instance().connect()
+        while True:
+            try:
+                data = await WS.get_instance().recv()
+                message_from_broker = BrokerWSIncomingMessage.parse_raw(data)
+                logger.debug(extra=context_log_meta.get(),
+                             msg=f"broker_ws_listener: message_from_broker: {message_from_broker}")
+            except Exception as e:
+                logger.error(extra=context_log_meta.get(),
+                             msg=f"broker_ws_listener: exception in broker_ws_listener: {e}")
+
+    @staticmethod
+    async def broker_ws_sender(data: json):
+        """send data to websocket"""
+        await WS.get_instance().send(data)

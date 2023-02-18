@@ -1,5 +1,5 @@
 import enum
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict
 from pydantic.main import BaseModel
 from datetime import datetime
 
@@ -75,8 +75,26 @@ class BrokerWSCommands(str, enum.Enum):
     ERROR = "error"
 
 
-class BrokerWSMessage(BaseModel):
+class BrokerWSDataTypes(str, enum.Enum):
+    """Broker websocket data types"""
+    PING = "ping"
+    QUOTE = "quote"
+    ERROR = "error"
+
+
+class BrokerWSOutgoingMessage(BaseModel):
     """Broker websocket command model"""
-    command: BrokerWSCommands
+    msg_command: BrokerWSCommands
     data_type: str = "quote"
-    tokens: List[str] = []
+    tokens: List[int] = []
+
+
+class BrokerWSIncomingMsgToken(BaseModel):
+    token: Optional[str] = None
+    price: Optional[float] = None
+
+
+class BrokerWSIncomingMessage(BaseModel):
+    """Broker websocket incoming message model"""
+    data_type: BrokerWSDataTypes
+    payload: Optional[Any] = {}

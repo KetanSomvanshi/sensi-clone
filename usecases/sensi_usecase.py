@@ -1,4 +1,3 @@
-import asyncio
 import time
 from typing import List, Set
 
@@ -10,8 +9,7 @@ from integrations.broker_integration import BrokerIntegration
 from logger import logger
 from models.base import GenericResponseModel
 from models.sensi_models import SensiUnderlyingModel, SensiDerivativeModel, SensiBrokerResModel, UnderlyingCacheModel, \
-    BrokerWSMessage, BrokerWSCommands
-from server import ws_app
+    BrokerWSOutgoingMessage, BrokerWSCommands
 
 
 class SensiUseCase:
@@ -140,6 +138,11 @@ class SensiUseCase:
         """add derivatives in cache"""
         return Cache.get_instance().sadd(RedisKeys.DERIVATIVES_DATA.format(underlying_token), values=derivatives)
 
+    """we are using combination of set and redis pubsub to send data from worker to application servers
+    worker would publish an event on topic and add data in set , app instance would subscribe to topic and
+    read data from set and process it , at a time only one instance would be able to read data from set and other 
+    instances would get empty data"""
+
     @staticmethod
     def publish_synced_derivatives_data(synced_derivatives: List[str]):
         """publish synced derivatives data to redis"""
@@ -155,16 +158,27 @@ class SensiUseCase:
         """
         Cache.get_instance().subscribe(RedisKeys.TOPIC_FOR_WS_DERIVAIVE_PUSH)
         while True:
-            message = Cache.get_instance().get_message()
-            print(message)
-            if message and message.get("data") == RedisKeys.TOPIC_MESSAGE_FOR_WS_DERIVAIVE_PUSH:
-                derivatives_to_subscribe: List[str] = Cache.get_instance().smembers_and_delete(
-                    key=RedisKeys.WS_FOR_DERIVATIVES_DATA)
-                # in cae of multiple instances of servers , all instances would subscribe to the topic but only on
-                # of them would get hold of data present in the redis set
-                if not derivatives_to_subscribe:
-                    continue
-                #  subscribe to derivatives data from WS
-                await ws_app.sender(
-                    data=BrokerWSMessage(command=BrokerWSCommands.SUBSCRIBE, tokens=derivatives_to_subscribe).json())
-            time.sleep(10)
+            try:
+                message = Cache.get_instance().get_message()
+                if message and message.get("data") == RedisKeys.TOPIC_MESSAGE_FOR_WS_DERIVAIVE_PUSH:
+                    derivatives_to_subscribe: List[str] = Cache.get_instance().smembers_and_delete(
+                        key=RedisKeys.WS_FOR_DERIVATIVES_DATA)
+                    # in cae of multiple instances of servers , all instances would subscribe to the topic but only on
+                    # of them would get hold of data present in the redis set
+                    if not derivatives_to_subscribe:
+                        continue
+                    #  subscribe to derivatives data from WS
+                    logger.info(extra=context_log_meta.get(),
+                                msg=f"subscribe_and_poll_to_derivative_data: subscribing to derivatives data from ws "
+                                    f": {derivatives_to_subscribe}")
+                    await BrokerIntegration.broker_ws_sender(
+                        data=BrokerWSOutgoingMessage(msg_command=BrokerWSCommands.SUBSCRIBE,
+                                                     tokens=derivatives_to_subscribe).json())
+                    logger.info(extra=context_log_meta.get(),
+                                msg=f"subscribe_and_poll_to_derivative_data: subscribed to derivatives data from ws "
+                                    f": {derivatives_to_subscribe}")
+            except Exception as e:
+                logger.error(extra=context_log_meta.get(),
+                             msg=f"exception in subscribe_and_poll_to_derivative_data : {e}")
+            finally:
+                time.sleep(10)
