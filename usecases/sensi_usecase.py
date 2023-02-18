@@ -1,3 +1,4 @@
+import asyncio
 import time
 from typing import List, Set
 
@@ -104,7 +105,8 @@ class SensiUseCase:
                     derivatives=token_to_add_in_cache)
                 derivative_tokens_to_subscribe_from_ws.extend(token_to_add_in_cache)
             # add newly added derivatives to set of tokens to subscribe from ws
-            SensiUseCase.publish_synced_derivatives_data(derivative_tokens_to_subscribe_from_ws)
+            if derivative_tokens_to_subscribe_from_ws:
+                SensiUseCase.publish_synced_derivatives_data(derivative_tokens_to_subscribe_from_ws)
             return GenericResponseModel(success=True)
         except Exception as e:
             logger.error(extra=context_log_meta.get(), msg=f"exception in sync_derivatives_data error : {e}")
@@ -153,7 +155,7 @@ class SensiUseCase:
         """
         Cache.get_instance().subscribe(RedisKeys.TOPIC_FOR_WS_DERIVAIVE_PUSH)
         while True:
-            message = await Cache.get_instance().get_message()
+            message = Cache.get_instance().get_message()
             print(message)
             if message and message.get("data") == RedisKeys.TOPIC_MESSAGE_FOR_WS_DERIVAIVE_PUSH:
                 derivatives_to_subscribe: List[str] = Cache.get_instance().smembers_and_delete(
