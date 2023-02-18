@@ -58,7 +58,7 @@ class BrokerIntegration:
                     # try to reconnect
                     await WS.get_instance().connect()
                 elif message_from_broker.data_type == BrokerWSDataTypes.QUOTE:
-                    Cache.get_instance().hset(key=RedisKeys.DERIVATIVES_PRICE_DATA,
+                    Cache.get_instance().hset(key=RedisKeys.ENTITY_PRICE_DATA,
                                               mapping={message_from_broker.payload.get("token"):
                                                        message_from_broker.payload.get("price")})
             except Exception as e:

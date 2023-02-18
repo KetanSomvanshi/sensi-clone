@@ -38,7 +38,7 @@ class SensiUseCase:
             sensi_derivatives: List[SensiDerivativeModel] = SensiDerivative.get_all_derivative_by_underlying_symbol(
                 symbol=symbol)
             token_price_from_cache: dict = Cache.get_instance(). \
-                hmget(RedisKeys.DERIVATIVES_PRICE_DATA, fields=[derivative.token for derivative in sensi_derivatives])
+                hmget(RedisKeys.ENTITY_PRICE_DATA, fields=[derivative.token for derivative in sensi_derivatives])
             # build a map of token and price from list of derivatives
             token_price_map: dict = {}
             for i in range(len(sensi_derivatives)):
@@ -114,7 +114,7 @@ class SensiUseCase:
                 derivative_tokens_to_subscribe_from_ws.extend(token_to_add_in_cache)
             # add newly added derivatives to set of tokens to subscribe from ws
             if derivative_tokens_to_subscribe_from_ws:
-                SensiUseCase.publish_synced_derivatives_data(derivative_tokens_to_subscribe_from_ws)
+                SensiUseCase.publish_synced_entity_data(derivative_tokens_to_subscribe_from_ws)
             return GenericResponseModel(success=True)
         except Exception as e:
             logger.error(extra=context_log_meta.get(), msg=f"exception in sync_derivatives_data error : {e}")
@@ -154,25 +154,25 @@ class SensiUseCase:
     instances would get empty data"""
 
     @staticmethod
-    def publish_synced_derivatives_data(synced_derivatives: List[str]):
+    def publish_synced_entity_data(synced_entity_tokens: List[str]):
         """publish synced derivatives data to redis"""
-        Cache.get_instance().sadd_and_publish(topic=RedisKeys.TOPIC_FOR_WS_DERIVAIVE_PUSH,
-                                              msg=RedisKeys.TOPIC_MESSAGE_FOR_WS_DERIVAIVE_PUSH,
-                                              key=RedisKeys.WS_FOR_DERIVATIVES_DATA, values=synced_derivatives)
+        Cache.get_instance().sadd_and_publish(topic=RedisKeys.TOPIC_FOR_WS_ENTITY_PUSH,
+                                              msg=RedisKeys.TOPIC_MESSAGE_FOR_WS_ENTITY_PUSH,
+                                              key=RedisKeys.ENTITY_TOKENS_TO_BE_SYNCED, values=synced_entity_tokens)
 
     @staticmethod
-    async def subscribe_and_poll_to_derivative_data():
+    async def subscribe_and_poll_to_entity_data():
         """subscribe to derivative data and poll for data
         in cae of multiple instances of servers , all instances would subscribe to the topic and receive message
         but only one of them would get hold of data present in set
         """
-        Cache.get_instance().subscribe(RedisKeys.TOPIC_FOR_WS_DERIVAIVE_PUSH)
+        Cache.get_instance().subscribe(RedisKeys.TOPIC_FOR_WS_ENTITY_PUSH)
         while True:
             try:
                 message = Cache.get_instance().get_message()
-                if message and message.get("data") == RedisKeys.TOPIC_MESSAGE_FOR_WS_DERIVAIVE_PUSH:
+                if message and message.get("data") == RedisKeys.TOPIC_MESSAGE_FOR_WS_ENTITY_PUSH:
                     derivatives_to_subscribe: List[str] = Cache.get_instance().smembers_and_delete(
-                        key=RedisKeys.WS_FOR_DERIVATIVES_DATA)
+                        key=RedisKeys.ENTITY_TOKENS_TO_BE_SYNCED)
                     # in cae of multiple instances of servers , all instances would subscribe to the topic but only on
                     # of them would get hold of data present in the redis set
                     if not derivatives_to_subscribe:
