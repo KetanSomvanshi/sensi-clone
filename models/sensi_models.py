@@ -35,6 +35,7 @@ class SensiBase(SensiBrokerResModel):
     updated_at: Optional[datetime]
     is_deleted: bool
     expiry: Optional[Any] = None
+    price: Optional[float] = 0
 
     class Config:
         orm_mode = True
@@ -47,7 +48,6 @@ class SensiUnderlyingModel(SensiBase):
 
 class SensiDerivativeModel(SensiBase):
     """Sensi derivative model"""
-    price: Optional[float] = 0
     underlying_id: int
     underlying_data: SensiUnderlyingModel
 

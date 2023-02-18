@@ -22,6 +22,18 @@ class SensiUseCase:
         """
         try:
             sensi_underlyings: List[SensiUnderlyingModel] = SensiUnderlying.get_all_underlying()
+            if not sensi_underlyings:
+                return GenericResponseModel(success=False, payload="No underlyings found")
+            token_price_from_cache: dict = Cache.get_instance(). \
+                hmget(RedisKeys.ENTITY_PRICE_DATA, fields=[underlying.token for underlying in sensi_underlyings])
+            # build a map of token and price from list of derivatives
+            token_price_map: dict = {}
+            for i in range(len(sensi_underlyings)):
+                if token_price_from_cache[i]:
+                    token_price_map[sensi_underlyings[i].token] = token_price_from_cache[i]
+            # update price in derivative object from cache
+            for derivative in sensi_underlyings:
+                derivative.price = token_price_map.get(derivative.token)
             return GenericResponseModel(success=True, payload=sensi_underlyings)
         except Exception as e:
             logger.error(extra=context_log_meta.get(), msg=f"exception in get_underlying_prices error : {e}")
@@ -37,6 +49,8 @@ class SensiUseCase:
         try:
             sensi_derivatives: List[SensiDerivativeModel] = SensiDerivative.get_all_derivative_by_underlying_symbol(
                 symbol=symbol)
+            if not sensi_derivatives:
+                return GenericResponseModel(success=False, payload="No derivatives found for given symbol")
             token_price_from_cache: dict = Cache.get_instance(). \
                 hmget(RedisKeys.ENTITY_PRICE_DATA, fields=[derivative.token for derivative in sensi_derivatives])
             # build a map of token and price from list of derivatives
@@ -72,6 +86,7 @@ class SensiUseCase:
             # update cached underlyings with newly added underlyings
             SensiUseCase.add_underlyings_in_cache([UnderlyingCacheModel(token=underlying.token, id=underlying.id) for
                                                    underlying in underlyings_to_insert])
+            SensiUseCase.publish_synced_entity_data([underlying.token for underlying in underlyings_to_insert])
             return GenericResponseModel(success=True)
         except Exception as e:
             logger.error(extra=context_log_meta.get(), msg=f"exception in sync_underlyings_data error : {e}")
