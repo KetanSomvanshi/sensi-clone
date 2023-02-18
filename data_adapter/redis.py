@@ -10,9 +10,13 @@ from utils.utils import Singleton
 
 @Singleton
 class Cache:
+    """abstract layer for redis, using singleton pattern here to avoid multiple connections"""
+
     def __init__(self):
+        """initiate redis connection and pubsub connection"""
         self.__redis_url = REDIS.url
         self._redis = self.__init_redis()
+        self._pubsub = self._redis.pubsub()
 
     def __init_redis(self):
         try:
@@ -72,3 +76,50 @@ class Cache:
         except Exception as e:
             logger.error(extra=context_log_meta.get(), msg=f"error in redis hkeys : {e}")
             return []
+
+    def sadd_and_publish(self, topic: str, msg: str, key: str, values: List[str]) -> int:
+        """add data to set and publish on given topic"""
+        try:
+            if not self.__validate(key=key):
+                return 0
+            pipeline = self._redis.pipeline()
+            pipeline.sadd(key, *values)
+            pipeline.publish(topic, msg)
+            return pipeline.execute()[0]
+        except Exception as e:
+            logger.error(extra=context_log_meta.get(), msg=f"error in redis sadd_and_publish : {e}")
+            return 0
+
+    def smembers_and_delete(self, key: str) -> Set[str]:
+        """get smembers and delete key"""
+        try:
+            if not self.__validate(key=key):
+                return set()
+            pipeline = self._redis.pipeline()
+            pipeline.smembers(key)
+            pipeline.delete(key)
+            return set(pipeline.execute()[0])
+        except Exception as e:
+            logger.error(extra=context_log_meta.get(), msg=f"error in redis smembers_and_delete : {e}")
+            return set()
+
+    def subscribe(self, topic: str) -> None:
+        """subscribe to given topic"""
+        print("subscribing to topic : ", topic)
+        try:
+            if not self.__validate():
+                return
+            self._pubsub.subscribe(topic)
+        except Exception as e:
+            logger.error(extra=context_log_meta.get(), msg=f"error in redis subscribe : {e}")
+            return
+
+    def get_message(self) -> Dict:
+        """get message from given topic"""
+        try:
+            if not self.__validate():
+                return {}
+            return self._pubsub.get_message()
+        except Exception as e:
+            logger.error(extra=context_log_meta.get(), msg=f"error in redis get_message : {e}")
+            return {}

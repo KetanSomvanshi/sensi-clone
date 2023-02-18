@@ -1,4 +1,5 @@
-from typing import Optional, Any
+import enum
+from typing import Optional, Any, List
 from pydantic.main import BaseModel
 from datetime import datetime
 
@@ -64,3 +65,18 @@ class UnderlyingCacheModel(BaseModel):
         """builds cache data from response model"""
         token, id = cache_data.split("::")
         return cls(token=token, id=int(id))
+
+
+class BrokerWSCommands(str, enum.Enum):
+    """Broker websocket commands"""
+    SUBSCRIBE = "subscribe"
+    UNSUBSCRIBE = "unsubscribe"
+    PING = "ping"
+    ERROR = "error"
+
+
+class BrokerWSMessage(BaseModel):
+    """Broker websocket command model"""
+    command: BrokerWSCommands
+    data_type: str = "quote"
+    tokens: List[str] = []

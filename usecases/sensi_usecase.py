@@ -1,3 +1,4 @@
+import time
 from typing import List, Set
 
 from config.constants import RedisKeys
@@ -7,7 +8,9 @@ from data_adapter.sensi_data import SensiUnderlying, SensiDerivative
 from integrations.broker_integration import BrokerIntegration
 from logger import logger
 from models.base import GenericResponseModel
-from models.sensi_models import SensiUnderlyingModel, SensiDerivativeModel, SensiBrokerResModel, UnderlyingCacheModel
+from models.sensi_models import SensiUnderlyingModel, SensiDerivativeModel, SensiBrokerResModel, UnderlyingCacheModel, \
+    BrokerWSMessage, BrokerWSCommands
+from server import ws_app
 
 
 class SensiUseCase:
@@ -76,6 +79,7 @@ class SensiUseCase:
             if not udnerlyings_from_system:
                 logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in db")
                 return GenericResponseModel(success=False)
+            derivative_tokens_to_subscribe_from_ws: List[str] = []
             for underlying in udnerlyings_from_system:
                 derivatives_from_broker: List[
                     SensiBrokerResModel] = BrokerIntegration.fetch_all_derivatives_by_underlying_token(
@@ -94,9 +98,13 @@ class SensiUseCase:
                     [derivative.build_derivative_db_model(underlying_id=underlying.id) for derivative in
                      derivatives_to_be_added])
                 # update cached derivatives with newly added derivatives
+                token_to_add_in_cache = [derivative.token for derivative in derivatives_to_be_added]
                 SensiUseCase.add_derivatives_in_cache(
                     underlying_token=underlying.token,
-                    derivatives=[derivative.token for derivative in derivatives_to_be_added])
+                    derivatives=token_to_add_in_cache)
+                derivative_tokens_to_subscribe_from_ws.extend(token_to_add_in_cache)
+            # add newly added derivatives to set of tokens to subscribe from ws
+            SensiUseCase.publish_synced_derivatives_data(derivative_tokens_to_subscribe_from_ws)
             return GenericResponseModel(success=True)
         except Exception as e:
             logger.error(extra=context_log_meta.get(), msg=f"exception in sync_derivatives_data error : {e}")
@@ -129,3 +137,32 @@ class SensiUseCase:
     def add_derivatives_in_cache(underlying_token: str, derivatives: List[str]) -> int:
         """add derivatives in cache"""
         return Cache.get_instance().sadd(RedisKeys.DERIVATIVES_DATA.format(underlying_token), values=derivatives)
+
+    @staticmethod
+    def publish_synced_derivatives_data(synced_derivatives: List[str]):
+        """publish synced derivatives data to redis"""
+        Cache.get_instance().sadd_and_publish(topic=RedisKeys.TOPIC_FOR_WS_DERIVAIVE_PUSH,
+                                              msg=RedisKeys.TOPIC_MESSAGE_FOR_WS_DERIVAIVE_PUSH,
+                                              key=RedisKeys.WS_FOR_DERIVATIVES_DATA, values=synced_derivatives)
+
+    @staticmethod
+    async def subscribe_and_poll_to_derivative_data():
+        """subscribe to derivative data and poll for data
+        in cae of multiple instances of servers , all instances would subscribe to the topic and receive message
+        but only one of them would get hold of data present in set
+        """
+        Cache.get_instance().subscribe(RedisKeys.TOPIC_FOR_WS_DERIVAIVE_PUSH)
+        while True:
+            message = await Cache.get_instance().get_message()
+            print(message)
+            if message and message.get("data") == RedisKeys.TOPIC_MESSAGE_FOR_WS_DERIVAIVE_PUSH:
+                derivatives_to_subscribe: List[str] = Cache.get_instance().smembers_and_delete(
+                    key=RedisKeys.WS_FOR_DERIVATIVES_DATA)
+                # in cae of multiple instances of servers , all instances would subscribe to the topic but only on
+                # of them would get hold of data present in the redis set
+                if not derivatives_to_subscribe:
+                    continue
+                #  subscribe to derivatives data from WS
+                await ws_app.sender(
+                    data=BrokerWSMessage(command=BrokerWSCommands.SUBSCRIBE, tokens=derivatives_to_subscribe).json())
+            time.sleep(10)

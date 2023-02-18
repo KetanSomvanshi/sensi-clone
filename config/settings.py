@@ -30,3 +30,4 @@ class BrokerConfig:
     url = Environment.get_string("BROKER_INTEGRATION_URL", "https://prototype.sbulltech.com/api")
     underlying_url = Environment.get_string("BROKER_UNDERLYING_URL", "/underlyings")
     derivative_url = Environment.get_string("BROKER_DERIVATIVE_URL", "/derivatives/{}")
+    ws_url = Environment.get_string("BROKER_WS_URL", "wss://prototype.sbulltech.com/api/ws")
