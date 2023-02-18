@@ -1,9 +1,11 @@
 from typing import List
 
+from config.constants import RedisKeys
 from config.settings import BrokerConfig
 from controller.context_manager import context_log_meta
+from data_adapter.redis import Cache
 from logger import logger
-from models.sensi_models import SensiBrokerResModel
+from models.sensi_models import SensiBrokerResModel, BrokerWSDataTypes
 from utils.utils import make_request
 
 import json
@@ -49,6 +51,16 @@ class BrokerIntegration:
                 message_from_broker = BrokerWSIncomingMessage.parse_raw(data)
                 logger.debug(extra=context_log_meta.get(),
                              msg=f"broker_ws_listener: message_from_broker: {message_from_broker}")
+                if message_from_broker.data_type == BrokerWSDataTypes.ERROR:
+                    logger.error(extra=context_log_meta.get(),
+                                 msg=f"broker_ws_listener: Error in message from broker: {message_from_broker}"
+                                     f"trying to reconnect to websocket")
+                    # try to reconnect
+                    await WS.get_instance().connect()
+                elif message_from_broker.data_type == BrokerWSDataTypes.QUOTE:
+                    Cache.get_instance().hset(key=RedisKeys.DERIVATIVES_PRICE_DATA,
+                                              mapping={message_from_broker.payload.get("token"):
+                                                       message_from_broker.payload.get("price")})
             except Exception as e:
                 logger.error(extra=context_log_meta.get(),
                              msg=f"broker_ws_listener: exception in broker_ws_listener: {e}")

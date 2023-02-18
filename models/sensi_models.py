@@ -47,6 +47,7 @@ class SensiUnderlyingModel(SensiBase):
 
 class SensiDerivativeModel(SensiBase):
     """Sensi derivative model"""
+    price: Optional[float] = 0
     underlying_id: int
     underlying_data: SensiUnderlyingModel
 

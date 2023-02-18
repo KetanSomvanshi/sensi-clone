@@ -68,6 +68,16 @@ class Cache:
             logger.error(extra=context_log_meta.get(), msg=f"error in redis hgetall : {e}")
             return {}
 
+    def hmget(self, key: str, fields: List[str]) -> Dict:
+        """get multiple fields from hash"""
+        try:
+            if not self.__validate(key=key):
+                return {}
+            return self._redis.hmget(key, fields)
+        except Exception as e:
+            logger.error(extra=context_log_meta.get(), msg=f"error in redis hget_multiple : {e}")
+            return {}
+
     def hkeys(self, key: str) -> List[str]:
         try:
             if not self.__validate(key=key):
