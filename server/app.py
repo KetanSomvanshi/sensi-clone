@@ -22,7 +22,9 @@ app.include_router(status.router)
 app.include_router(sensi_controller.sensi_router)
 
 """we are trying to bound the asynchronous functions to a thread so that we can run them in a synchronous manner
-inside the background threads"""
+inside the background threads
+We would create a new event loop for each thread and run the asynchronous functions in that event loop
+"""
 
 
 async def redis_subscriber_callback():
@@ -36,15 +38,15 @@ def redis_subscriber_between_callback():
     loop.close()
 
 
-async def broker_ws_listener_callback():
-    await BrokerIntegration.broker_ws_listener()
-
-
-def broker_ws_callback_listener():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(broker_ws_listener_callback())
-    loop.close()
+# async def broker_ws_listener_callback():
+#     await BrokerIntegration.broker_ws_listener()
+#
+#
+# def broker_ws_callback_listener():
+#     loop = asyncio.new_event_loop()
+#     asyncio.set_event_loop(loop)
+#     loop.run_until_complete(broker_ws_listener_callback())
+#     loop.close()
 
 
 @app.on_event("startup")
@@ -57,8 +59,11 @@ async def startup_event():
         _redis_subscriber_thread = threading.Thread(target=redis_subscriber_between_callback, args=())
         _redis_subscriber_thread.start()
         logger.info("Starting background thread for broker ws listener")
-        _broker_ws_listener_thread = threading.Thread(target=broker_ws_callback_listener, args=())
-        _broker_ws_listener_thread.start()
+        # _broker_ws_listener_thread = threading.Thread(target=broker_ws_callback_listener, args=())
+        # _broker_ws_listener_thread.start()
+
+        #  for WS we can use existing app server event loop instead of creating new event loop in a new thread
+        asyncio.create_task(BrokerIntegration.broker_ws_listener())
         # register the node id in redis nodes list
         Cache.get_instance().hset(key=RedisKeys.NODE_IDS_IN_CLUSTER, mapping={AppConfig.node_id: 1})
         logger.info("Startup Event Completed node_id = {}".format(AppConfig.node_id))

@@ -165,8 +165,15 @@ class SensiUseCase:
             logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in cache fetching form db")
             underlying_from_db = SensiUnderlying.get_all_underlyings()
             if not underlying_from_db:
-                logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in db")
-                return []
+                logger.error(extra=context_log_meta.get(),
+                             msg=f"no underlyings found in db...syncing underlying from broker")
+                SensiUseCase.sync_underlyings_data()
+                underlyings = [UnderlyingCacheModel.parse_cache_data(data) for data in
+                               Cache.get_instance().smembers(RedisKeys.UNDERLYINGS_DATA)]
+                if not underlyings:
+                    logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in broker")
+                    return []
+                return underlyings
             SensiUseCase.add_underlyings_in_cache([UnderlyingCacheModel(token=underlying.token, id=underlying.id) for
                                                    underlying in underlying_from_db])
             underlyings = [UnderlyingCacheModel(token=underlying.token, id=underlying.id) for underlying in
