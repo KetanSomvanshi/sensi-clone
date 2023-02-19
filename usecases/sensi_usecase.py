@@ -239,6 +239,7 @@ class SensiUseCase:
                         data=BrokerWSOutgoingMessage(msg_command=BrokerWSCommands.SUBSCRIBE,
                                                      tokens=derivatives_to_subscribe).json())
                     # register the entity token as ws subscriber for the node
+                    # if this node goes down , orchestrator would register these entity ws subscribers to other node
                     Cache.get_instance().sadd(key=RedisKeys.NODE_ID_WS_ENTITY_MAPPING.format(AppConfig.node_id),
                                               values=derivatives_to_subscribe)
                     logger.info(extra=context_log_meta.get(),

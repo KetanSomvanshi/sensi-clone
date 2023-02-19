@@ -5,8 +5,11 @@ import threading
 import uvicorn
 from fastapi import FastAPI
 
+from config.constants import RedisKeys
+from config.settings import AppConfig
 from controller import status, sensi_controller
 from data_adapter import db
+from data_adapter.redis import Cache
 from integrations.broker_integration import BrokerIntegration
 from logger import logger
 from usecases.sensi_usecase import SensiUseCase
@@ -47,7 +50,7 @@ def broker_ws_callback_listener():
 @app.on_event("startup")
 async def startup_event():
     """this is the startup event which will be called when the fastapi server starts"""
-    logger.info("Startup Event Triggered")
+    logger.info("Startup Event Triggered node_id: {}".format(AppConfig.node_id))
     try:
         """start a background thread to subscribe to redis and poll for broker ws listener"""
         logger.info("Starting background thread for redis subscriber")
@@ -56,7 +59,9 @@ async def startup_event():
         logger.info("Starting background thread for broker ws listener")
         _broker_ws_listener_thread = threading.Thread(target=broker_ws_callback_listener, args=())
         _broker_ws_listener_thread.start()
-        logger.info("Startup Event Completed")
+        # register the node id in redis nodes list
+        Cache.get_instance().hset(key=RedisKeys.NODE_IDS_IN_CLUSTER, mapping={AppConfig.node_id: 1})
+        logger.info("Startup Event Completed node_id = {}".format(AppConfig.node_id))
     except Exception as e:
         logger.error(f"Error while connecting to websocket {e}")
 
