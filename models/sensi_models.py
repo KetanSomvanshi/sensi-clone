@@ -1,7 +1,8 @@
 import enum
-from typing import Optional, Any, List, Dict
-from pydantic.main import BaseModel
 from datetime import datetime
+from typing import Optional, Any, List
+
+from pydantic.main import BaseModel
 
 
 class SensiBrokerResModel(BaseModel):

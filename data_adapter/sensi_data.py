@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List
 
 from sqlalchemy import Column, TIMESTAMP, Boolean, Integer, String, Float, ForeignKey, DATE

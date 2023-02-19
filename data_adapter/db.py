@@ -2,7 +2,7 @@ from datetime import datetime
 from urllib.parse import quote_plus
 
 from pytz import timezone
-from sqlalchemy import Column, TIMESTAMP, Boolean, Integer, create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, scoped_session
 from sqlalchemy.orm import sessionmaker

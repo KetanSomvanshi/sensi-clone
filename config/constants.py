@@ -1,5 +1,4 @@
 class RedisKeys:
-    # using short key names to save space in redis
     UNDERLYINGS_DATA = "UNDERLYINGS_DATA"
     DERIVATIVES_DATA = "DERIVATIVES_DATA:{}"
     ENTITY_TOKENS_TO_BE_SYNCED = "ENTITY_TOKENS_TO_SYNC"

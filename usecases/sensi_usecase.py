@@ -11,7 +11,7 @@ from data_adapter.ws import WS
 from integrations.broker_integration import BrokerIntegration
 from logger import logger
 from models.base import GenericResponseModel
-from models.sensi_models import SensiUnderlyingModel, SensiDerivativeModel, SensiBrokerResModel, UnderlyingCacheModel, \
+from models.sensi_models import SensiBrokerResModel, UnderlyingCacheModel, \
     BrokerWSOutgoingMessage, BrokerWSCommands, SensiResModel
 
 

@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import List
 
@@ -5,14 +6,11 @@ from config.constants import RedisKeys
 from config.settings import BrokerConfig, AppConfig
 from controller.context_manager import context_log_meta
 from data_adapter.redis import Cache
+from data_adapter.ws import WS
 from logger import logger
+from models.sensi_models import BrokerWSIncomingMessage
 from models.sensi_models import SensiBrokerResModel, BrokerWSDataTypes
 from utils.utils import make_request
-
-import json
-
-from data_adapter.ws import WS
-from models.sensi_models import BrokerWSOutgoingMessage, BrokerWSIncomingMessage
 
 
 class BrokerIntegration:
