@@ -28,9 +28,13 @@ services:
     depends_on:
       - redis
       - postgres
+      - app
+      - worker
     links:
       - redis
       - postgres
+      - app
+      - worker
     command: run_scheduler
 #  build the image for worker
   worker:
@@ -42,9 +46,11 @@ services:
     depends_on:
       - redis
       - postgres
+      - app
     links:
       - redis
       - postgres
+      - app
     command: run_worker
   redis:
     image: redis:alpine
