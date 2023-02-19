@@ -4,6 +4,7 @@ import uuid
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
+from config.settings import AppConfig
 from data_adapter.db import get_db, db_session
 from logger import logger
 
@@ -26,7 +27,8 @@ async def build_request_context(request: Request,
     # set the db-session in context-var so that we don't have to pass this dependency downstream
     context_db_session.set(db)
     context_api_id.set(str(uuid.uuid4()))
-    context_log_meta.set({'api_id': context_api_id.get(), 'request_id': request.headers.get('X-Request-ID')})
+    context_log_meta.set({'api_id': context_api_id.get(), 'request_id': request.headers.get('X-Request-ID'),
+                          'node_id': AppConfig.node_id})
     logger.info(extra={"api_id": context_api_id.get()}, msg="REQUEST_INITIATED")
 
 

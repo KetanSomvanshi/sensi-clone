@@ -1,7 +1,8 @@
+from datetime import datetime
 from typing import List
 
 from config.constants import RedisKeys
-from config.settings import BrokerConfig
+from config.settings import BrokerConfig, AppConfig
 from controller.context_manager import context_log_meta
 from data_adapter.redis import Cache
 from logger import logger
@@ -60,7 +61,10 @@ class BrokerIntegration:
                 elif message_from_broker.data_type == BrokerWSDataTypes.QUOTE:
                     Cache.get_instance().hset(key=RedisKeys.ENTITY_PRICE_DATA,
                                               mapping={message_from_broker.payload.get("token"):
-                                                       message_from_broker.payload.get("price")})
+                                                           message_from_broker.payload.get("price")})
+                # register the last ping recieved time in cache
+                Cache.get_instance().hset(key=RedisKeys.LAST_PING_TIME_FROM_WS,
+                                          mapping={AppConfig.node_id: datetime.now().timestamp()})
             except Exception as e:
                 logger.error(extra=context_log_meta.get(),
                              msg=f"broker_ws_listener: exception in broker_ws_listener: {e}")

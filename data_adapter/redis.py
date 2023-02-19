@@ -87,6 +87,16 @@ class Cache:
             logger.error(extra=context_log_meta.get(), msg=f"error in redis hkeys : {e}")
             return []
 
+    def publish(self, topic: str, msg: str) -> None:
+        """publish message on given topic"""
+        try:
+            if not self.__validate():
+                return
+            self._redis.publish(topic, msg)
+        except Exception as e:
+            logger.error(extra=context_log_meta.get(), msg=f"error in redis publish : {e}")
+            return
+
     def sadd_and_publish(self, topic: str, msg: str, key: str, values: List[str]) -> int:
         """add data to set and publish on given topic"""
         try:

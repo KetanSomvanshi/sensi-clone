@@ -35,3 +35,18 @@ def trigger_derivatives_sync() -> GenericResponseModel:
     logger.info(extra=context_log_meta.get(),
                 msg="trigger_derivatives_sync: Syncing derivatives data from broker completed")
     return response
+
+
+@celery_app.task
+def check_ws_connection_alive():
+    """ This is a celery task which is triggered by scheduler to check if websocket connection is alive
+    If not alive, it would try to reconnect """
+    logger.info(extra=context_log_meta.get(), msg="check_ws_connection_alive: Triggered")
+    build_non_request_context()
+    response: GenericResponseModel = SensiUseCase().check_ws_connection_alive()
+    if not response.success:
+        logger.error(extra=context_log_meta.get(),
+                     msg=f"check_ws_connection_alive: Error in checking websocket connection alive")
+    logger.info(extra=context_log_meta.get(),
+                msg="check_ws_connection_alive: Checking websocket connection alive completed")
+    return response

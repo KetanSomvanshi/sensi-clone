@@ -1,10 +1,13 @@
 import time
+from datetime import datetime, timedelta
 from typing import List, Set
 
 from config.constants import RedisKeys
+from config.settings import AppConfig, BrokerConfig
 from controller.context_manager import context_log_meta
 from data_adapter.redis import Cache
 from data_adapter.sensi_data import SensiUnderlying, SensiDerivative
+from data_adapter.ws import WS
 from integrations.broker_integration import BrokerIntegration
 from logger import logger
 from models.base import GenericResponseModel
@@ -176,12 +179,13 @@ class SensiUseCase:
                                               key=RedisKeys.ENTITY_TOKENS_TO_BE_SYNCED, values=synced_entity_tokens)
 
     @staticmethod
-    async def subscribe_and_poll_to_entity_data():
+    async def subscribe_and_poll_topic_data():
         """subscribe to derivative data and poll for data
         in cae of multiple instances of servers , all instances would subscribe to the topic and receive message
         but only one of them would get hold of data present in set
         """
         Cache.get_instance().subscribe(RedisKeys.TOPIC_FOR_WS_ENTITY_PUSH)
+        Cache.get_instance().subscribe(RedisKeys.TOPIC_FOR_WS_RECONNECT)
         while True:
             try:
                 message = Cache.get_instance().get_message()
@@ -194,17 +198,46 @@ class SensiUseCase:
                         continue
                     #  subscribe to derivatives data from WS
                     logger.info(extra=context_log_meta.get(),
-                                msg=f"subscribe_and_poll_to_derivative_data: subscribing to derivatives data from ws "
+                                msg=f"subscribe_and_poll_topic_data: subscribing to derivatives data from ws "
                                     f": {derivatives_to_subscribe}")
                     await BrokerIntegration.broker_ws_sender(
                         data=BrokerWSOutgoingMessage(msg_command=BrokerWSCommands.SUBSCRIBE,
                                                      tokens=derivatives_to_subscribe).json())
                     logger.info(extra=context_log_meta.get(),
-                                msg=f"subscribe_and_poll_to_derivative_data: subscribed to derivatives data from ws "
+                                msg=f"subscribe_and_poll_topic_data: subscribed to derivatives data from ws "
                                     f": {derivatives_to_subscribe}")
+                elif message and message.get("channel") == RedisKeys.TOPIC_FOR_WS_RECONNECT and message.get(
+                        "data") == AppConfig.node_id:
+                    # if node instance get a message on topic to reconnect  and node id in message matched its own node
+                    # id then it would reconnect to ws
+                    logger.info(extra=context_log_meta.get(),
+                                msg=f"subscribe_and_poll_topic_data: reconnecting to ws")
+                    await WS.get_instance().connect()
+                    logger.info(extra=context_log_meta.get(),
+                                msg=f"subscribe_and_poll_topic_data: reconnected to ws")
             except Exception as e:
                 logger.error(extra=context_log_meta.get(),
                              msg=f"exception in subscribe_and_poll_to_derivative_data : {e}")
             finally:
                 # poll every second
                 time.sleep(1)
+
+    """WS reconnect logic , we would register last ping against node id in redis hashset 
+    worker would keep on checking if last ping is older than 60 seconds , if yes then it would
+    publish a node_id as message on topic TOPIC_FOR_WS_RECONNECT
+     reciever node would check if it's node id matches with message and if yes then it would
+        reconnect to ws"""
+
+    @staticmethod
+    def check_ws_connection_alive():
+        """check if ws connection is alive """
+        node_id_last_ping_map: dict = Cache.get_instance().hgetall(RedisKeys.LAST_PING_TIME_FROM_WS)
+        current_time = datetime.now()
+        for node_id, last_ping in node_id_last_ping_map.items():
+            if current_time - datetime.fromtimestamp(float(last_ping)) > timedelta(seconds=BrokerConfig.ws_ping_timeout):
+                logger.error(extra=context_log_meta.get(),
+                             msg=f"check_ws_connection_alive: ws connection is not alive for node_id : {node_id}")
+                Cache.get_instance().publish(RedisKeys.TOPIC_FOR_WS_RECONNECT, node_id)
+                logger.info(extra=context_log_meta.get(),
+                            msg=f"check_ws_connection_alive: published message node id : {node_id} on topic "
+                                f"{RedisKeys.TOPIC_FOR_WS_RECONNECT}")

@@ -23,7 +23,7 @@ inside the background threads"""
 
 
 async def redis_subscriber_callback():
-    await SensiUseCase.subscribe_and_poll_to_entity_data()
+    await SensiUseCase.subscribe_and_poll_topic_data()
 
 
 def redis_subscriber_between_callback():
