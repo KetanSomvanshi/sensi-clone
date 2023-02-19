@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import Column, TIMESTAMP, Boolean, Integer, String, Float, ForeignKey,DATE
+from sqlalchemy import Column, TIMESTAMP, Boolean, Integer, String, Float, ForeignKey, DATE
 from sqlalchemy.orm import backref, relationship
 
 from controller.context_manager import get_db_session
@@ -40,6 +40,12 @@ class SensiUnderlying(DBBase, SensiDBBase):
         return [underlying.__to_model().build_res_model() for underlying in db.query(cls).all()]
 
     @classmethod
+    def get_all_underlyings(cls) -> List[SensiUnderlyingModel]:
+        """returns all underlying data"""
+        db = get_db_session()
+        return [underlying.__to_model() for underlying in db.query(cls).all()]
+
+    @classmethod
     def insert_underlyings(cls, underlyings):
         db = get_db_session()
         db.add_all(underlyings)
@@ -69,3 +75,10 @@ class SensiDerivative(DBBase, SensiDBBase):
         db = get_db_session()
         db.add_all(derivatives)
         db.flush()
+
+    @classmethod
+    def get_all_derivatives_by_underlying_token(cls, token: str) -> List[SensiDerivativeModel]:
+        """returns all derivative data for a given underlying token"""
+        db = get_db_session()
+        return [derivative.__to_model() for derivative in
+                db.query(cls).join(SensiUnderlying).filter(SensiUnderlying.token == token).all()]

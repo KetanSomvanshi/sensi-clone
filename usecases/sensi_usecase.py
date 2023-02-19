@@ -141,14 +141,37 @@ class SensiUseCase:
     @staticmethod
     def get_all_underlyings_from_cache() -> Set[str]:
         """extract only underlying tokens and return"""
-        return {UnderlyingCacheModel.parse_cache_data(data).token for data in
-                Cache.get_instance().smembers(RedisKeys.UNDERLYINGS_DATA)}
+        underlyings = {UnderlyingCacheModel.parse_cache_data(data).token for data in
+                       Cache.get_instance().smembers(RedisKeys.UNDERLYINGS_DATA)}
+        if not underlyings:
+            # if cache is empty then fetch from db
+            logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in cache fetching form db")
+            underlying_from_db = SensiUnderlying.get_all_underlyings()
+            if not underlying_from_db:
+                logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in db")
+                return set()
+            SensiUseCase.add_underlyings_in_cache([UnderlyingCacheModel(token=underlying.token, id=underlying.id) for
+                                                   underlying in underlying_from_db])
+            underlyings = {underlying.token for underlying in underlying_from_db}
+        return underlyings
 
     @staticmethod
     def get_underlyings_token_id_from_cache() -> List[UnderlyingCacheModel]:
         """extract underlying tokens and ids and return"""
-        return [UnderlyingCacheModel.parse_cache_data(data) for data in
-                Cache.get_instance().smembers(RedisKeys.UNDERLYINGS_DATA)]
+        underlyings = [UnderlyingCacheModel.parse_cache_data(data) for data in
+                       Cache.get_instance().smembers(RedisKeys.UNDERLYINGS_DATA)]
+        if not underlyings:
+            # if cache is empty then fetch from db
+            logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in cache fetching form db")
+            underlying_from_db = SensiUnderlying.get_all_underlyings()
+            if not underlying_from_db:
+                logger.error(extra=context_log_meta.get(), msg=f"no underlyings found in db")
+                return []
+            SensiUseCase.add_underlyings_in_cache([UnderlyingCacheModel(token=underlying.token, id=underlying.id) for
+                                                   underlying in underlying_from_db])
+            underlyings = [UnderlyingCacheModel(token=underlying.token, id=underlying.id) for underlying in
+                           underlying_from_db]
+        return underlyings
 
     @staticmethod
     def add_underlyings_in_cache(underlyings: List[UnderlyingCacheModel]) -> int:
@@ -159,7 +182,19 @@ class SensiUseCase:
     @staticmethod
     def get_all_derivatives_from_cache(underlying_token: str) -> Set[str]:
         """extract derivatives associated with underlying token"""
-        return Cache.get_instance().smembers(RedisKeys.DERIVATIVES_DATA.format(underlying_token))
+        derivatives = Cache.get_instance().smembers(RedisKeys.DERIVATIVES_DATA.format(underlying_token))
+        if not derivatives:
+            # if cache is empty then fetch from db
+            logger.error(extra=context_log_meta.get(), msg=f"no derivatives found in cache fetching form db")
+            derivatives_from_db = SensiDerivative.get_all_derivatives_by_underlying_token(underlying_token)
+            if not derivatives_from_db:
+                logger.error(extra=context_log_meta.get(), msg=f"no derivatives found in db")
+                return set()
+            SensiUseCase.add_derivatives_in_cache(underlying_token=underlying_token,
+                                                  derivatives=[derivative.token for derivative in
+                                                               derivatives_from_db])
+            derivatives = {derivative.token for derivative in derivatives_from_db}
+        return derivatives
 
     @staticmethod
     def add_derivatives_in_cache(underlying_token: str, derivatives: List[str]) -> int:
@@ -203,6 +238,9 @@ class SensiUseCase:
                     await BrokerIntegration.broker_ws_sender(
                         data=BrokerWSOutgoingMessage(msg_command=BrokerWSCommands.SUBSCRIBE,
                                                      tokens=derivatives_to_subscribe).json())
+                    # register the entity token as ws subscriber for the node
+                    Cache.get_instance().sadd(key=RedisKeys.NODE_ID_WS_ENTITY_MAPPING.format(AppConfig.node_id),
+                                              values=derivatives_to_subscribe)
                     logger.info(extra=context_log_meta.get(),
                                 msg=f"subscribe_and_poll_topic_data: subscribed to derivatives data from ws "
                                     f": {derivatives_to_subscribe}")
@@ -234,7 +272,8 @@ class SensiUseCase:
         node_id_last_ping_map: dict = Cache.get_instance().hgetall(RedisKeys.LAST_PING_TIME_FROM_WS)
         current_time = datetime.now()
         for node_id, last_ping in node_id_last_ping_map.items():
-            if current_time - datetime.fromtimestamp(float(last_ping)) > timedelta(seconds=BrokerConfig.ws_ping_timeout):
+            if current_time - datetime.fromtimestamp(float(last_ping)) > timedelta(
+                    seconds=BrokerConfig.ws_ping_timeout):
                 logger.error(extra=context_log_meta.get(),
                              msg=f"check_ws_connection_alive: ws connection is not alive for node_id : {node_id}")
                 Cache.get_instance().publish(RedisKeys.TOPIC_FOR_WS_RECONNECT, node_id)
