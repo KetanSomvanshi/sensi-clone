@@ -50,8 +50,8 @@ class BrokerIntegration:
             try:
                 data = await WS.get_instance().recv()
                 message_from_broker = BrokerWSIncomingMessage.parse_raw(data)
-                logger.debug(extra=context_log_meta.get(),
-                             msg=f"broker_ws_listener: message_from_broker: {message_from_broker}")
+                # logger.debug(extra=context_log_meta.get(),
+                #              msg=f"broker_ws_listener: message_from_broker: {message_from_broker}")
                 if message_from_broker.data_type == BrokerWSDataTypes.ERROR:
                     logger.error(extra=context_log_meta.get(),
                                  msg=f"broker_ws_listener: Error in message from broker: {message_from_broker}"
